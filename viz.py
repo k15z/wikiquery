@@ -1,7 +1,8 @@
 from loop import vector
 from keras.models import model_from_json
 from data import embedding, dev_data, train_data
-
+import tqdm
+import json
 import numpy as np
 from loop import make_generator
 from keras.models import Sequential
@@ -9,21 +10,21 @@ from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
 from keras.layers import Dense, Merge, Dropout, Flatten
 
-EMBEDDING_DIMS = 100
+EMBEDDING_DIMS = 300
 CONTEXT_LENGTH = 700
 QUESTION_LENGTH = 40
 
 cenc = Sequential()
 cenc.add(LSTM(128, input_shape=(CONTEXT_LENGTH, EMBEDDING_DIMS), return_sequences=True))
-cenc.add(Dropout(0.2))
+cenc.add(Dropout(0.25))
 
 qenc = Sequential()
 qenc.add(LSTM(128, input_shape=(QUESTION_LENGTH, EMBEDDING_DIMS), return_sequences=True))
-qenc.add(Dropout(0.2))
+qenc.add(Dropout(0.25))
 
 aenc = Sequential()
 aenc.add(LSTM(128, input_shape=(1, EMBEDDING_DIMS), return_sequences=True))                   
-aenc.add(Dropout(0.2))
+aenc.add(Dropout(0.25))
 
 facts = Sequential()
 facts.add(Merge([cenc, qenc], mode="dot", dot_axes=[2, 2]))
@@ -37,24 +38,35 @@ model.add(Flatten())
 model.add(Dense(2, activation="softmax"))
 
 model.compile(optimizer="rmsprop", loss="categorical_crossentropy", metrics=["accuracy"])
-
-
-#MODEL_JSON = open("model/arch.json","rt").read()
-#model = model_from_json(MODEL_JSON)
 model.load_weights("model/iw-lstm.h5")
 
-for i in range(20):
-	c, q, a = dev_data[i]
-	results = []
+results = []
+for i in tqdm.tqdm(range(250)):
+	prediction = []
+	c, q, a = train_data[i+233]
 	c_vec = vector(c, pad_to=700)
 	q_vec = vector(q, pad_to=40)
+	
+ 	C = []
+	Q = []
+	A = []
 	for word in c:
-		a_vec = vector([word], pad_to=1)
-		result = model.predict([np.array([c_vec]), np.array([q_vec]), np.array([a_vec])])
-		results.append((result.flatten()[0], word))
-	results = list(reversed(sorted(results)))[:10]
-	print(" ".join(c))
-	print(" ".join(q))
-	print(" ".join(a))
-	print(results)
-	print("")
+		C.append(c_vec)
+		Q.append(q_vec)
+		A.append(vector([word], pad_to=1))
+	C, Q, A = map(np.array, (C, Q, A))
+	P = model.predict([C, Q, A])
+  
+	for i, word in enumerate(c):
+		prediction.append({
+			"word": word,
+			"probability": float(P[i][0])
+		})
+
+	results.append({
+		"text": " ".join(c),
+		"question": " ".join(q),
+		"answer": " ".join(a),
+		"prediction": prediction
+	})
+	json.dump(results, open("viz.json", "wt"), indent=4)

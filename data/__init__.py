@@ -6,8 +6,8 @@ import cPickle as pickle
 
 DATA_DIR = os.path.dirname(__file__)
 
-EMBEDDING_DIMS = 100
-EMBEDDING_FILE = os.path.join(DATA_DIR, 'glove/glove.6B.100d.txt')
+EMBEDDING_DIMS = 300
+EMBEDDING_FILE = os.path.join(DATA_DIR, 'glove/glove.6B.300d.txt')
 EMBEDDING_PICKLE = os.path.join(DATA_DIR, 'embedding.pickle')
 if os.path.isfile(EMBEDDING_PICKLE):
 	print("Restoring embedding...")
